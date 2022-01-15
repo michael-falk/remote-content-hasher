@@ -1,11 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
+	"os"
 )
 
 func FetchContent(url string) ([]byte, error) {
@@ -42,7 +43,6 @@ type IndexedContent struct {
 
 func worker(id int, jobs <-chan IndexedContent, results chan<- IndexedContent) {
 	for job := range jobs {
-		fmt.Println("worker", id, "started  job", job.index, " ", job.content)
 		results <- IndexedContent{index: job.index, content: HashRemoteContent(job.content)}
 	}
 }
@@ -70,14 +70,25 @@ func HashAllRemoteContent(numWorkers int, urls []string) []string {
 }
 
 func main() {
-	urls := []string{"http://example.com/",
-		"https://github.githubassets.com/images/mona-loading-default.gif",
-		"https://upload.wikimedia.org/wikipedia/commons/d/d3/Trex_pixel.png"}
+	filename := os.Args[1]
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer file.Close()
 
-	expected := []string{
-		"84238dfc8092e5d9c0dac8ef93371a07",
-		"c502cd01c910b4f53d86603d6bd078ff",
-		"e9d2e589fdf6b0e8517aa22c1c8b89a4"}
+	urls := make([]string, 0)
 
-	fmt.Println(reflect.DeepEqual(expected, HashAllRemoteContent(2, urls)))
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		urls = append(urls, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		panic(err)
+	}
+
+	for _, e := range HashAllRemoteContent(2, urls) {
+		fmt.Println(e)
+	}
 }
