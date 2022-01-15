@@ -35,10 +35,35 @@ func HashRemoteContent(url string) string {
 	return fmt.Sprintf("%x", md5.Sum(content))
 }
 
-func HashAllRemoteContent(urls []string) []string {
+type IndexedContent struct {
+	index   int
+	content string
+}
+
+func worker(id int, jobs <-chan IndexedContent, results chan<- IndexedContent) {
+	for job := range jobs {
+		fmt.Println("worker", id, "started  job", job.index, " ", job.content)
+		results <- IndexedContent{index: job.index, content: HashRemoteContent(job.content)}
+	}
+}
+
+func HashAllRemoteContent(numWorkers int, urls []string) []string {
 	res := make([]string, len(urls))
+	jobs := make(chan IndexedContent, len(urls))
+	results := make(chan IndexedContent, len(urls))
+
+	for w := 1; w <= numWorkers; w++ {
+		go worker(w, jobs, results)
+	}
+
 	for i, url := range urls {
-		res[i] = HashRemoteContent(url)
+		jobs <- IndexedContent{index: i, content: url}
+	}
+	close(jobs)
+
+	for a := 0; a < len(urls); a++ {
+		ans := <-results
+		res[ans.index] = ans.content
 	}
 
 	return res
@@ -54,5 +79,5 @@ func main() {
 		"c502cd01c910b4f53d86603d6bd078ff",
 		"e9d2e589fdf6b0e8517aa22c1c8b89a4"}
 
-	fmt.Println(reflect.DeepEqual(expected, HashAllRemoteContent(urls)))
+	fmt.Println(reflect.DeepEqual(expected, HashAllRemoteContent(2, urls)))
 }
