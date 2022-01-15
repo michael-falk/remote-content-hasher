@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 func FetchContent(url string) ([]byte, error) {
@@ -88,7 +89,15 @@ func main() {
 		panic(err)
 	}
 
-	for _, e := range HashAllRemoteContent(2, urls) {
+	var numWorkers int64 = 100
+	if len(os.Args) > 2 {
+		numWorkers, err = strconv.ParseInt(os.Args[2], 10, 0)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for _, e := range HashAllRemoteContent(int(numWorkers), urls) {
 		fmt.Println(e)
 	}
 }
